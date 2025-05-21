@@ -16,22 +16,23 @@ class AdminAuthController extends Controller
         return view('admin.login');
     }
 
-    public function login_submit(Request $request)  {
+    public function login_submit(Request $request)
+    {
         $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
-    
+
         $check = $request->all();
         $data = [
             'email' => $check['email'],
             'password' => $check['password']
         ];
-    
+
         if (Auth::guard('admin')->attempt($data)) {
             return redirect()->route('admin_dashboard')->with('success', 'Login is successful!');
         } else {
-            return redirect()->route('admin_login')->with('error','The information you entered is incorrect! Please try again!');
+            return redirect()->route('admin_login')->with('error', 'The information you entered is incorrect! Please try again!');
         }
     }
 
@@ -40,13 +41,51 @@ class AdminAuthController extends Controller
         Auth::guard('admin')->logout();
         return redirect()->route('admin_login')->with('success', 'Logout is successful!');
     }
-    
-    public function profile() {
+
+    // profile
+    public function profile()
+    {
         return view('admin.profile');
     }
 
+    public function profile_submit(Request $request)
+    {
+        $request->validate([
+            'name' => ['required'],
+            'email' => ['required', 'email'],
+        ]);
+
+        $admin = Admin::where('id', Auth::guard('admin')->user()->id)->first();
+
+        // change photo
+        if ($request->photo) {
+            $request->validate([
+                'photo' => ['mimes:jpg,jpeg,png,gif', 'max:2048'],
+            ]);
+            $final_name = 'admin_' . time() . '.' . $request->photo->extension();
+            $request->photo->move(public_path('uploads/'), $final_name);
+            unlink(public_path('uploads/' . $admin->photo));
+            $admin->photo = $final_name;
+        }
+
+        // change password
+        if ($request->password) {
+            $request->validate([
+                'password' => ['required'],
+                'confirm_password' => ['required', 'same:password'],
+            ]);
+            $admin->password = Hash::make($request->password);
+        }
+
+        $admin->name = $request->name;
+        $admin->email = $request->email;
+        $admin->update();
+        return redirect()->back()->with('success', 'Profile is updated successfully!');
+    }
+
     // forget password
-    public function forget_password() {
+    public function forget_password()
+    {
         return view('admin.forget-password');
     }
 
